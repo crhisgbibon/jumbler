@@ -6,8 +6,8 @@
     <link rel="icon" href="/assets/favicon-82fbd818.ico">
     
     <title>Jumbler</title>
-    <script type="module" crossorigin src="/assets/index-f832b2a1.js"></script>
-    <link rel="stylesheet" href="/assets/index-bddadfac.css">
+    <script type="module" crossorigin src="/assets/index-1a638214.js"></script>
+    <link rel="stylesheet" href="/assets/index-f25906cf.css">
   </head>
   <body class='min-h-screen max-h-screen'>
 
@@ -31,19 +31,19 @@
     <div id="settingsMenu" class="fixed bg-white z-10 flex w-full flex-col justify-start items-center justify-items-start	mx-auto overflow-y-auto" style="height:calc(var(--vh) * 85)">
 
       <label for="rows" class="flex justify-center items-center m-4 text-center">Rows:</label>
-      <input class="flex justify-center items-center m-4 text-center" type="text" id="rows" name="rows" value="3" placeholder="R">
+      <input class="flex justify-center items-center m-4 border border-black rounded-lg p-2 text-center" type="number" min="1" step="1" id="rows" name="rows" value="3" placeholder="R">
   
       <label for="columns" class="flex justify-center items-center mx-4 text-center">Columns:</label>
-      <input class="flex justify-center items-center m-4 text-center" type="text" id="columns" name="columns" value="3" placeholder="C">
+      <input class="flex justify-center items-center m-4 border border-black rounded-lg p-2 text-center" type="number" min="1" step="1" id="columns" name="columns" value="3" placeholder="C">
   
       <label for="uploadedFiles" class="flex justify-center items-center mx-4 text-center">Currently Selected:</label>
-      <select class="flex justify-center items-center rounded-lg m-4 active:scale-95" id="uploadedFiles" style="max-width:250px"></select>
+      <select class="flex justify-center items-center rounded-lg m-4 border border-black rounded-lg p-2 active:scale-95" id="uploadedFiles" style="min-width: 200px; max-width:250px"></select>
   
       <label for="loadSelected" class="flex justify-center items-center m-4 text-center">Load Selected:</label>
-      <x-primary-button id="loadSelected" class="flex justify-center items-center m-4 active:scale-95"><img class="w-3/4 h-3/4" src="/chevronRight.svg"></x-primary-button>
+      <button id="loadSelected" class="flex justify-center items-center m-4 p-4 rounded-lg border border-black active:scale-95"><img class="w-3/4 h-3/4" src="/chevronRight.svg"></button>
       
-      <label for="upload" class="flex justify-center items-center m-4 text-center">Upload Images:</label>
-      <x-primary-button id="upload" class="flex justify-center items-center m-4 active:scale-95" id="triggerSelectFileButton"><img class="w-3/4 h-3/4" src="/chevronUp.svg"></x-primary-button>
+      <label for="triggerSelectFileButton" class="flex justify-center items-center m-4 text-center">Upload Images:</label>
+      <button class="flex justify-center items-center m-4 p-4 rounded-lg border border-black active:scale-95" id="triggerSelectFileButton"><img class="w-3/4 h-3/4" src="/chevronUp.svg"></button>
       
     </div>
   
