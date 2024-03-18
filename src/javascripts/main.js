@@ -1,385 +1,440 @@
-"use strict";
+"use strict"
 
-function CalculateVh()
-{
-  let vh = window.innerHeight * 0.01;
-  document.documentElement.style.setProperty('--vh', vh + 'px');
-}
+import svg from './svg.js';
+import Alpine from 'alpinejs';
 
-window.addEventListener('DOMContentLoaded', CalculateVh);
-window.addEventListener('resize', CalculateVh);
-window.addEventListener('orientationchange', CalculateVh);
+window.Alpine = Alpine;
+Alpine.start();
+
+const NAV = document.getElementById("NAV");
+const MENU = document.getElementById("MENU");
+
+const ORIGINAL = document.getElementById("ORIGINAL");
+const COMPLETED = document.getElementById("COMPLETED");
+const JUMBLE = document.getElementById("JUMBLE");
+
+const SCALE_DOWN = document.getElementById("SCALE_DOWN");
+const SCALE_UP = document.getElementById("SCALE_UP");
+
+const UP = document.getElementById("UP");
+const DOWN = document.getElementById("DOWN");
+
+const ROWS = document.getElementById("ROWS");
+const COLUMNS = document.getElementById("COLUMNS");
+const THEME = document.getElementById("THEME");
+
+const UPLOADED = document.getElementById("UPLOADED");
+const PLAY = document.getElementById("PLAY");
+const SELECT = document.getElementById("SELECT");
+const IMPORT = document.getElementById("IMPORT");
+const LOAD = document.getElementById("LOAD");
+
+ORIGINAL.innerHTML = svg.eye.trim();
+JUMBLE.innerHTML = svg.dice.trim();
+
+UP.innerHTML = svg.up.trim();
+DOWN.innerHTML = svg.down.trim();
+
+THEME.innerHTML = svg.theme.trim();
+
+const CANVAS = document.getElementById("CANVAS");
+const c = CANVAS.getContext("2d");
+c.canvas.willReadFrequently = true;
+
+ORIGINAL.onclick = function(){ window.jumbler.is_original() };
+JUMBLE.onclick = function(){ window.jumbler.jumble() };
+
+SCALE_DOWN.onclick = function(){ window.jumbler.scale_down() };
+SCALE_UP.onclick = function(){ window.jumbler.scale_up() };
+
+THEME.onclick = function(){ window.jumbler.toggle_dark() };
+
+PLAY.onclick = function(){ window.jumbler.reload() };
+SELECT.onclick = function(){ IMPORT.click() };
+LOAD.onclick = function(){ window.jumbler.import() };
 
 class Fragment
 {
-  frag = undefined;
-  row = 0;
-  column = 0;
-  index = 0;
-}
-
-const jumbleDiv = document.getElementById("jumbleDiv");
-const canvas = document.getElementById("ctx");
-const ctx = canvas.getContext("2d");
-
-const completed = document.getElementById('completed');
-
-const rowInput = document.getElementById("rows");
-const colInput = document.getElementById("columns");
-
-const fileInput = document.getElementById("myfile");
-const uploadSelect = document.getElementById('uploadedFiles');
-uploadSelect.onchange = function() { ReLoad(); };
-
-const triggerSelectFileButton = document.getElementById("triggerSelectFileButton");
-const fileupload = document.getElementById("fileupload");
-fileupload.onchange = function() { LoadFiles(); };
-const clearFileSelectButton = document.getElementById("clearFileSelectButton");
-
-// triggerSelectFileButton.onclick = function() { fileupload.click(); };
-
-const originalButton = document.getElementById("originalButton");
-originalButton.onclick = function() { ToggleOriginal(); };
-
-const jumbleButton = document.getElementById("jumbleButton");
-jumbleButton.onclick = function() { Jumble(); };
-
-const settingsButton = document.getElementById("settingsButton");
-settingsButton.onclick = function() { ToggleSettings(); };
-
-const loadSelected = document.getElementById("loadSelected");
-loadSelected.onclick = function() { ReLoad();ToggleSettings(); };
-
-const settingsMenu = document.getElementById("settingsMenu");
-settingsMenu.style.display = 'none';
-
-let w, h, tW, tH, total, firstP, secondP;
-let scale = 1;
-
-let original = [];
-let fragments = [];
-let uploadedFiles = [];
-
-let img1 = new Image();
-
-let toggleS = false;
-
-function ToggleSettings()
-{
-  toggleS = !toggleS;
-  if(toggleS)
+  constructor(
+    index,
+    row,
+    column,
+    imgData,
+  )
   {
-    settingsMenu.style.display = '';
-  } 
-  else
-  {
-    settingsMenu.style.display = 'none';
+    this.frag = imgData;
+    this.row = row;
+    this.column = column;
+    this.index = index;
   }
 }
 
-function LoadFiles() 
+class Jumbler
 {
-  let files = document.getElementById('fileupload').files;
+  constructor(
 
-  function readAndPreview(file)
+    )
   {
-    if (window.File && window.FileReader && window.FileList && window.Blob)
+    this.debug = false;
+    this.dark = false;
+    this.show_original = true;
+
+    this.w = 0;
+    this.h = 0;
+    this.tW = 0;
+    this.tH = 0;
+    this.total = 0;
+    this.firstP = 0;
+    this.secondP = 0;
+
+    this.scale = 1;
+    this.original = [];
+    this.fragments = [];
+    this.uploaded_files = [];
+
+    this.stored_width = 0;
+    this.stored_height = 0;
+
+    this.current_img = new Image();
+
+    console.log(this);
+  }
+
+  toggle_dark()
+  {
+    this.dark = !this.dark;
+  }
+
+  update_menus()
+  {
+    if(this.dark)
     {
-      let reader = new FileReader();
-  
-      reader.addEventListener("load", function ()
+      NAV.classList.remove('bg-mod_light');
+      MENU.classList.remove('bg-mod_light');
+
+      NAV.classList.add('bg-mod_dark');
+      MENU.classList.add('bg-mod_dark');
+
+      NAV.classList.remove('text-mod_dark');
+      MENU.classList.remove('text-mod_dark');
+
+      NAV.classList.add('text-mod_light');
+      MENU.classList.add('text-mod_light');
+    }
+    else
+    {
+      NAV.classList.remove('bg-mod_dark');
+      MENU.classList.remove('bg-mod_dark');
+
+      NAV.classList.add('bg-mod_light');
+      MENU.classList.add('bg-mod_light');
+
+      NAV.classList.remove('text-mod_light');
+      MENU.classList.remove('text-mod_light');
+
+      NAV.classList.add('text-mod_dark');
+      MENU.classList.add('text-mod_dark');
+    }
+  }
+
+  import() 
+  {
+    let files = IMPORT.files;
+    console.log(files, this.uploaded_files);
+
+    function read_this_file(file)
+    {
+      if(window.File && window.FileReader && window.FileList && window.Blob)
       {
-        let listImg = document.createElement("img");
-        listImg.src = this.result;
-        uploadedFiles.push(listImg);
-        let newSelect = document.createElement('option');
-        newSelect.value = uploadedFiles.length - 1;
-        newSelect.innerHTML = file.name;
-        uploadSelect.appendChild(newSelect);
-      }, 
-      false);
+        let reader = new FileReader();
+    
+        reader.addEventListener("load", function ()
+        {
+          let list_img = document.createElement("img");
+          list_img.src = this.result;
+          window.jumbler.uploaded_files.push(list_img);
+          let new_option = document.createElement('option');
+          new_option.value = window.jumbler.uploaded_files.length - 1;
+          new_option.innerHTML = file.name;
+          UPLOADED.appendChild(new_option);
+        }, 
+        false);
 
-      reader.readAsDataURL(file);
+        reader.readAsDataURL(file);
+      }
     }
-  }
 
-  if (files.length > 0)
-  {
-    for(let f = 0; f < files.length; f++)
+    if(files.length > 0)
     {
-      readAndPreview(files[f]);
+      for(let f = 0; f < files.length; f++)
+      {
+        read_this_file(files[f]);
+      }
     }
   }
-}
 
-function SwitchImage()
-{
-  if(uploadedFiles.Length == 0)
+  reload()
   {
-    return;
+    if(this.uploaded_files.length == 0) return;
+    this.current_img.src = this.uploaded_files[UPLOADED.value].src;
+    c.drawImage(this.current_img, 0, 0);
+    this.stored_width = this.current_img.width;
+    this.stored_height = this.current_img.height;
+    this.create();
   }
 
-  if(imgSource == null || imgSource == '')
+  scale_up()
   {
-    return;
+    this.scale += 0.1;
+    this.scale = parseFloat(this.scale.toFixed(2));
+    console.log(this.scale, 'scaling up');
+    this.dimensions();
   }
 
-  img1.src = uploadedFiles[uploadSelect.value].src;
-  ctx.drawImage(img1, 0, 0);
-  fragments.length = 0;
-  original.length = 0;
-  CreateImage(img1.src);
-}
-
-function ReLoad()
-{
-  if(uploadedFiles.Length == 0)
+  scale_down()
   {
-    return;
+    this.scale -= 0.1;
+    this.scale = parseFloat(this.scale.toFixed(2));
+    console.log(this.scale, 'scaling down');
+    this.dimensions();
   }
 
-  img1.src = uploadedFiles[uploadSelect.value].src;
-  ctx.drawImage(img1, 0, 0);
-  CreateImage(img1.src);
-}
+  dimensions()
+  {
+    CANVAS.width = (this.stored_width * this.scale);
+    CANVAS.height = (this.stored_height * this.scale);
 
-function ChangeScale()
-{
-  scale = document.getElementById('scale').value;
-}
+    let maxWidth = CANVAS.offsetWidth * 0.75;
+    let maxHeight = CANVAS.offsetHeight * 0.75;
 
-function CreateImage(imgSource)
-{
-  let img = document.createElement('img');
+    let originalWidth = this.stored_width;
+    let originalHeight = this.stored_height;
+
+    if(originalWidth > maxWidth)
+    {
+      let percent = ( 100 / CANVAS.width ) * maxWidth;
+      let newHeight = ( CANVAS.height / 100 ) * percent;
+
+      this.current_img.width = maxWidth;
+      this.current_img.height = newHeight;
+      CANVAS.width = maxWidth;
+      CANVAS.height = newHeight;
+      c.drawImage(this.current_img, 0, 0, maxWidth, newHeight);
+    }
+    else if(originalHeight > maxHeight)
+    {
+      let percent = ( 100 / CANVAS.height ) * maxHeight;
+      let newWidth = ( CANVAS.width / 100 ) * percent;
+
+      this.current_img.width = newWidth;
+      this.current_img.height = maxHeight;
+      CANVAS.width = newWidth;
+      CANVAS.height = maxHeight;
+      c.drawImage(this.current_img, 0, 0, newWidth, maxHeight);
+    }
+    else
+    {
+      c.drawImage(this.current_img, 0, 0, this.current_img.width, this.current_img.height);
+    }
+
+    this.tW = this.current_img.width / ROWS.value;
+    this.tH = this.current_img.height / COLUMNS.value;
+
+    this.total = ROWS.value * COLUMNS.value;
+
+    this.fragments.length = 0;
+    this.original.length = 0;
+
+    if(CANVAS.width === 0) return;
+
+    for(let i = 0; i < ROWS.value; i++)
+    {
+      for(let p = 0; p < COLUMNS.value; p++)
+      {
+        let imgData = c.getImageData(i * this.tW, p * this.tH, this.tW, this.tH);
+        let f = new Fragment(
+          this.fragments.length,
+          i,
+          p,
+          imgData,
+        );
+        this.fragments.push(f);
+        let f1 = new Fragment(
+          this.fragments.length,
+          i,
+          p,
+          imgData,
+        );
+        this.original.push(f1);
+      }
+    }
+  }
+
+  create()
+  {
+    if(this.uploaded_files.length == 0) return;
+    if(this.current_img == null || this.current_img == '') return;
+
+    this.dimensions();
+  }
+
+  jumble()
+  {
+    if(this.uploaded_files.length == 0) return;
+    if(this.fragments.length == 0) return;
+
+    let temp = [];
+    let tempImg = [];
+
+    for(let i = 0; i < this.total; i++) temp.push(i);
+
+    for(let i = 0; i < ROWS.value; i++)
+    {
+      for(let p = 0; p < COLUMNS.value; p++)
+      {
+        let rndImg = Math.floor(Math.random() * temp.length);
+        tempImg.push(this.fragments[temp[rndImg]].frag);
+        temp.splice(rndImg, 1);
+      }
+    }
+    for(let i = 0; i < tempImg.length; i++)
+    {
+      this.fragments[i].frag = tempImg[i];
+      c.putImageData(this.fragments[i].frag, this.fragments[i].row * this.tW, this.fragments[i].column * this.tH);
+    }
+    
+    this.complete();
+  }
+
+  is_original()
+  {
+    if(this.uploaded_files.length == 0) return;
+
+    this.show_original = !this.show_original;
+
+    if(this.show_original === true)
+    {
+      for(let i = 0; i < this.original.length; i++)
+      {
+        c.putImageData(this.original[i].frag, this.original[i].row * this.tW, this.original[i].column * this.tH);
+      }
+      ORIGINAL.style.transform = 'rotate(90deg)';
+    } 
+    else
+    {
+      for(let i = 0; i < this.fragments.length; i++)
+      {
+        c.putImageData(this.fragments[i].frag, this.fragments[i].row * this.tW, this.fragments[i].column * this.tH);
+      }
+      ORIGINAL.style.transform = '';
+    }
+  }
+
+  complete()
+  {
+    let score = 0;
+    for(let i = 0; i < this.fragments.length; i++)
+    {
+      if(this.fragments[i].frag === this.original[i].frag) score++;
+    }
+    let percent = Math.floor(100 / this.fragments.length * score);
+    COMPLETED.innerHTML = percent.toString() + "%";
+  }
+
+  mouse_down(x, y)
+  {
+    let segX = Math.floor(x / this.tW);
+    let segY = Math.floor(y / this.tH);
+    this.firstP = segX * COLUMNS.value + segY;
+  }
+
+  mouse_up(x, y)
+  {
+    let segX = Math.floor(x / this.tW);
+    let segY = Math.floor(y / this.tH);
+    this.secondP = segX * COLUMNS.value + segY;
   
-  if(uploadedFiles.Length == 0)
-  {
-    return;
-  }
-
-  if(imgSource == null || imgSource == '')
-  {
-    return;
-  }
-  
-  img.src = imgSource;
-
-  canvas.width = img.width;
-  canvas.height = img.height;
-
-  let maxWidth = jumbleDiv.offsetWidth * 0.75;
-  let maxHeight = jumbleDiv.offsetHeight * 0.75;
-
-  let originalWidth = img.width;
-  let originalHeight = img.height;
-
-  if(originalWidth > maxWidth)
-  {
-    let percent = ( 100 / canvas.width ) * maxWidth;
-    let newHeight = ( canvas.height / 100 ) * percent;
-
-    img.width = maxWidth;
-    img.height = newHeight;
-    canvas.width = maxWidth;
-    canvas.height = newHeight;
-    ctx.drawImage(img, 0, 0, maxWidth, newHeight);
-  }
-  else if(originalHeight > maxHeight)
-  {
-    let percent = ( 100 / canvas.height ) * maxHeight;
-    let newWidth = ( canvas.width / 100 ) * percent;
-
-    img.width = newWidth;
-    img.height = maxHeight;
-    canvas.width = newWidth;
-    canvas.height = maxHeight;
-    ctx.drawImage(img, 0, 0, newWidth, maxHeight);
-  }
-  else
-  {
-    ctx.drawImage(img, 0, 0, img.width, img.height);
-  }
-
-  tW = img.width / rowInput.value;
-  tH = img.height / colInput.value;
-  total = rowInput.value * colInput.value;
-
-  fragments.length = 0;
-  original.length = 0;
-
-  if(canvas.width === 0) return;
-
-  for(let i = 0; i < rowInput.value; i++)
-  {
-    for(let p = 0; p < colInput.value; p++)
+    if(this.firstP != this.secondP)
     {
-      let imgData = ctx.getImageData(i * tW, p * tH, tW, tH);
-      let f = new Fragment();
-      f.index = fragments.length;
-      f.row = i;
-      f.column = p;
-      f.frag = imgData;
-      fragments.push(f);
-      let f1 = new Fragment();
-      f1.index = fragments.length;
-      f1.row = i;
-      f1.column = p;
-      f1.frag = imgData;
-      original.push(f1);
+      c.putImageData(this.fragments[this.secondP].frag, this.fragments[this.firstP].row * this.tW, this.fragments[this.firstP].column * this.tH);
+      c.putImageData(this.fragments[this.firstP].frag, this.fragments[this.secondP].row * this.tW, this.fragments[this.secondP].column * this.tH);
+      let f1 = this.fragments[this.firstP].frag;
+      let f2 = this.fragments[this.secondP].frag;
+      this.fragments[this.firstP].frag = f2;
+      this.fragments[this.secondP].frag = f1;
     }
-  }
-  document.getElementById('originalImg').dataset.state = "original";
-}
-
-function Jumble()
-{
-  if(uploadedFiles.Length == 0)
-  {
-    return;
-  }
-
-  if(fragments.length == 0)
-  {
-    return;
-  }
-  let temp = [];
-  let tempImg = [];
-  for(let i = 0; i < total; i++)
-  {
-    temp.push(i);
-  }
-  for(let i = 0; i < rowInput.value; i++)
-  {
-    for(let p = 0; p < colInput.value; p++)
-    {
-      let rndImg = Math.floor(Math.random() * temp.length);
-      tempImg.push(fragments[temp[rndImg]].frag);
-      temp.splice(rndImg, 1);
-    }
-  }
-  for(let i = 0; i < tempImg.length; i++)
-  {
-    fragments[i].frag = tempImg[i];
-    ctx.putImageData(fragments[i].frag, fragments[i].row * tW, fragments[i].column * tH);
-  }
-  CheckComplete();
-  document.getElementById('originalImg').dataset.state = "jumbled";
-}
-
-function ToggleOriginal()
-{
-  if(uploadedFiles.Length == 0)
-  {
-    return;
-  }
-
-  let originalB = document.getElementById('originalImg');
-  if(originalB.dataset.state === "original")
-  {
-    for(let i = 0; i < original.length; i++)
-    {
-      ctx.putImageData(original[i].frag, original[i].row * tW, original[i].column * tH);
-    }
-    originalB.dataset.state = "jumbled";
-  } 
-  else if(originalB.dataset.state === 'jumbled')
-  {
-    for(let i = 0; i < fragments.length; i++)
-    {
-      ctx.putImageData(fragments[i].frag, fragments[i].row * tW, fragments[i].column * tH);
-    }
-    originalB.dataset.state = "original";
+    this.complete();
   }
 }
 
-function CheckComplete()
-{
-  let score = 0;
-  for(let i = 0; i < fragments.length; i++)
-  {
-    if(fragments[i].frag === original[i].frag)
-    {
-      score++;
-    }
-  }
-  let percent = Math.floor(100 /fragments.length * score);
-  completed.innerHTML = percent.toString() + "%";
-}
-
-canvas.onmousedown = function(event)
-{
+CANVAS.onmousedown = function(event) {
   event.preventDefault();
-  let rect = canvas.getBoundingClientRect();
-  let x = event.clientX - rect.left;
-  let y = event.clientY - rect.top;
-  let segX = Math.floor(x / tW);
-  let segY = Math.floor(y / tH);
-  firstP = segX * colInput.value + segY;
+
+  // Get the scroll position
+  const scrollX = window.pageXOffset || document.documentElement.scrollLeft;
+  const scrollY = window.pageYOffset || document.documentElement.scrollTop;
+
+  // Get the bounding rectangle of the canvas
+  let rect = CANVAS.getBoundingClientRect();
+
+  // Adjust mouse coordinates for scroll position
+  let x = event.clientX - rect.left - scrollX;
+  let y = event.clientY - rect.top - scrollY;
+
+  // Pass the adjusted coordinates to your function
+  window.jumbler.mouse_down(x, y);
 };
 
-canvas.onmouseup = function(event)
+
+CANVAS.onmouseup = function(event)
 {
   event.preventDefault();
-  let rect = canvas.getBoundingClientRect();
-  let x = event.clientX - rect.left;
-  let y = event.clientY - rect.top;
-  let segX = Math.floor(x / tW);
-  let segY = Math.floor(y / tH);
-  secondP = segX * colInput.value + segY;
+  // Get the scroll position
+  const scrollX = window.pageXOffset || document.documentElement.scrollLeft;
+  const scrollY = window.pageYOffset || document.documentElement.scrollTop;
 
-  if(firstP != secondP)
-  {
-    ctx.putImageData(fragments[secondP].frag, fragments[firstP].row * tW, fragments[firstP].column * tH);
-    ctx.putImageData(fragments[firstP].frag, fragments[secondP].row * tW, fragments[secondP].column * tH);
-    let f1 = fragments[firstP].frag;
-    let f2 = fragments[secondP].frag;
-    fragments[firstP].frag = f2;
-    fragments[secondP].frag = f1;
-  }
-  CheckComplete();
+  // Get the bounding rectangle of the canvas
+  let rect = CANVAS.getBoundingClientRect();
+
+  // Adjust mouse coordinates for scroll position
+  let x = event.clientX - rect.left - scrollX;
+  let y = event.clientY - rect.top - scrollY;
+  window.jumbler.mouse_up(x, y);
 };
 
-canvas.ontouchstart = function(event)
+CANVAS.ontouchstart = function(event)
 {
   event.preventDefault();
 
   if(event.touches != undefined)
   {
-    let rect = canvas.getBoundingClientRect();
+    let rect = CANVAS.getBoundingClientRect();
     let touch = event.touches[0] || event.changedTouches[0];
     let x = touch.pageX - rect.left;
     let y = touch.pageY - rect.top;
-
-    let segX = Math.floor(x / tW);
-    let segY = Math.floor(y / tH);
-    firstP = segX * colInput.value + segY;
+    window.jumbler.mouse_down(x, y);
   }
 };
 
-canvas.ontouchend = function(event)
+CANVAS.ontouchend = function(event)
 {
   event.preventDefault();
 
   if(event.touches != undefined)
   {
-    let rect = canvas.getBoundingClientRect();
+    let rect = CANVAS.getBoundingClientRect();
     let touch = event.touches[0] || event.changedTouches[0];
     let x = touch.pageX - rect.left;
     let y = touch.pageY - rect.top;
-  
-    let segX = Math.floor(x / tW);
-    let segY = Math.floor(y / tH);
-    secondP = segX * colInput.value + segY;
-
-    if(firstP != secondP)
-    {
-      ctx.putImageData(fragments[secondP].frag, fragments[firstP].row * tW, fragments[firstP].column * tH);
-      ctx.putImageData(fragments[firstP].frag, fragments[secondP].row * tW, fragments[secondP].column * tH);
-      let f1 = fragments[firstP].frag;
-      let f2 = fragments[secondP].frag;
-      fragments[firstP].frag = f2;
-      fragments[secondP].frag = f1;
-    }
-    CheckComplete();
+    window.jumbler.mouse_up(x, y);
   }
 };
+
+function start()
+{
+  CANVAS.width = window.innerWidth;
+  CANVAS.height = window.innerHeight;
+  window.jumbler = new Jumbler();
+}
+
+document.addEventListener("DOMContentLoaded", start);
