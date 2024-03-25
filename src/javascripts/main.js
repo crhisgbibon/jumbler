@@ -86,17 +86,19 @@ class Jumbler
     this.firstP = 0;
     this.secondP = 0;
 
-    this.scale = 1;
+    this.scale = 0.6;
     this.original = [];
     this.fragments = [];
     this.uploaded_files = [];
 
     this.stored_width = 0;
     this.stored_height = 0;
+    this.stored_rows = 0;
+    this.stored_columns = 0;
+
+    this.playing = false;
 
     this.current_img = new Image();
-
-    console.log(this);
   }
 
   toggle_dark()
@@ -150,7 +152,6 @@ class Jumbler
   import() 
   {
     let files = IMPORT.files;
-    console.log(files, this.uploaded_files);
 
     function read_this_file(file)
     {
@@ -190,80 +191,59 @@ class Jumbler
     this.stored_width = this.current_img.width;
     this.stored_height = this.current_img.height;
     this.init();
-    this.dimensions();
+    // this.dimensions();
     this.draw();
   }
 
   scale_up()
   {
+    if(this.playing)
+    {
+      let confirm = window.confirm('rescaling the image will reset the game');
+      if(!confirm) return;
+    }
+    this.playing = false;
     this.scale += 0.1;
     this.scale = parseFloat(this.scale.toFixed(2));
-    this.dimensions();
+    this.init();
     this.draw();
   }
 
   scale_down()
   {
+    if(this.playing)
+    {
+      let confirm = window.confirm('rescaling the image will reset the game');
+      if(!confirm) return;
+    }
+    this.playing = false;
     this.scale -= 0.1;
     this.scale = parseFloat(this.scale.toFixed(2));
-    this.dimensions();
+    this.init();
     this.draw();
   }
 
   init()
   {
-    if(this.uploaded_files.length == 0) return;
-    if(this.current_img == null || this.current_img == '') return;
-
     CANVAS.width = (this.stored_width * this.scale);
     CANVAS.height = (this.stored_height * this.scale);
 
-    let maxWidth = CANVAS.offsetWidth * 0.75;
-    let maxHeight = CANVAS.offsetHeight * 0.75;
+    this.stored_rows = ROWS.value;
+    this.stored_columns = COLUMNS.value;
 
-    let originalWidth = this.stored_width;
-    let originalHeight = this.stored_height;
+    c.drawImage(this.current_img, 0, 0, CANVAS.width, CANVAS.height);
 
-    if(originalWidth > maxWidth)
-    {
-      let percent = ( 100 / CANVAS.width ) * maxWidth;
-      let newHeight = ( CANVAS.height / 100 ) * percent;
+    this.tW = CANVAS.width / this.stored_rows;
+    this.tH = CANVAS.height / this.stored_columns;
 
-      this.current_img.width = maxWidth;
-      this.current_img.height = newHeight;
-      CANVAS.width = maxWidth;
-      CANVAS.height = newHeight;
-      c.drawImage(this.current_img, 0, 0, maxWidth, newHeight);
-    }
-    else if(originalHeight > maxHeight)
-    {
-      let percent = ( 100 / CANVAS.height ) * maxHeight;
-      let newWidth = ( CANVAS.width / 100 ) * percent;
-
-      this.current_img.width = newWidth;
-      this.current_img.height = maxHeight;
-      CANVAS.width = newWidth;
-      CANVAS.height = maxHeight;
-      c.drawImage(this.current_img, 0, 0, newWidth, maxHeight);
-    }
-    else
-    {
-      CANVAS.width = this.current_img.width;
-      CANVAS.height = this.current_img.height;
-      c.drawImage(this.current_img, 0, 0, this.current_img.width, this.current_img.height);
-    }
-
-    this.tW = this.current_img.width / ROWS.value;
-    this.tH = this.current_img.height / COLUMNS.value;
-
-    this.total = ROWS.value * COLUMNS.value;
+    this.total = this.stored_rows * this.stored_columns;
 
     this.fragments.length = 0;
     this.original.length = 0;
 
-    for(let i = 0; i < ROWS.value; i++)
+    for(let i = 0; i < this.stored_rows; i++)
     {
-      for(let p = 0; p < COLUMNS.value; p++)
+      for(let p = 0; p < this.stored_columns; p++)
       {
         let img_data = c.getImageData(i * this.tW, p * this.tH, this.tW, this.tH);
 
@@ -288,84 +268,46 @@ class Jumbler
     }
   }
 
-  dimensions()
-  {
-    CANVAS.width = (this.stored_width * this.scale);
-    CANVAS.height = (this.stored_height * this.scale);
+  // dimensions()
+  // {
+  //   CANVAS.width = (this.stored_width * this.scale);
+  //   CANVAS.height = (this.stored_height * this.scale);
 
-    let maxWidth = CANVAS.offsetWidth * 0.75;
-    let maxHeight = CANVAS.offsetHeight * 0.75;
+  //   if(this.current_img === null) return;
+  //   if(CANVAS.width === 0) return;
+  //   if(CANVAS.height === 0) return;
+  //   if(c.width === 0) return;
+  //   if(c.height === 0) return;
 
-    let originalWidth = this.stored_width;
-    let originalHeight = this.stored_height;
+  //   c.drawImage(this.current_img, 0, 0, CANVAS.width, CANVAS.height);
 
-    console.log(this.current_img.width);
-    console.log(this.current_img.height);
+  //   this.tW = CANVAS.width / this.stored_rows;
+  //   this.tH = CANVAS.height / this.stored_columns;
 
-    if(originalWidth > maxWidth)
-    {
-      console.log('toowide');
-      let percent = ( 100 / CANVAS.width ) * maxWidth;
-      let newHeight = ( CANVAS.height / 100 ) * percent;
+  //   let counter = 0;
 
-      this.current_img.width = maxWidth;
-      this.current_img.height = newHeight;
-      CANVAS.width = maxWidth;
-      CANVAS.height = newHeight;
-      c.drawImage(this.current_img, 0, 0, maxWidth, newHeight);
-    }
-    else if(originalHeight > maxHeight)
-    {
-      console.log('toohigh');
-      let percent = ( 100 / CANVAS.height ) * maxHeight;
-      let newWidth = ( CANVAS.width / 100 ) * percent;
+  //   for(let i = 0; i < this.stored_rows; i++)
+  //   {
+  //     for(let p = 0; p < this.stored_columns; p++)
+  //     {
+  //       let img_data = c.getImageData(i * this.tW, p * this.tH, this.tW, this.tH);
+  //       this.original[counter].frag = img_data;
 
-      this.current_img.width = newWidth;
-      this.current_img.height = maxHeight;
-      CANVAS.width = newWidth;
-      CANVAS.height = maxHeight;
-      c.drawImage(this.current_img, 0, 0, newWidth, maxHeight);
-    }
-    else
-    {
-      console.log('justright');
-      CANVAS.width = this.current_img.width;
-      CANVAS.height = this.current_img.height;
-      c.drawImage(this.current_img, 0, 0, this.current_img.width, this.current_img.height);
-    }
-
-    console.log(this.current_img.width);
-    console.log(this.current_img.height);
-
-    this.tW = this.current_img.width / ROWS.value;
-    this.tH = this.current_img.height / COLUMNS.value;
-
-    let counter = 0;
-
-    for(let i = 0; i < ROWS.value; i++)
-    {
-      for(let p = 0; p < COLUMNS.value; p++)
-      {
-        let img_data = c.getImageData(i * this.tW, p * this.tH, this.tW, this.tH);
-        this.original[counter].frag = img_data;
-
-        for(let f = 0; f < this.fragments.length; f++)
-        {
-          if(this.fragments[f].frag === img_data)
-          {
-            this.fragments[f].frag = img_data;
-            break;
-          }
-        }
-        counter++;
-      }
-    }
-  }
-
+  //       for(let f = 0; f < this.fragments.length; f++)
+  //       {
+  //         if(this.fragments[f].frag === img_data)
+  //         {
+  //           this.fragments[f].frag = img_data;
+  //           break;
+  //         }
+  //       }
+  //       counter++;
+  //     }
+  //   }
+  // }
 
   draw()
   {
-    console.log(this.show_original);
     if(this.show_original === true)
     {
       for(let i = 0; i < this.original.length; i++)
@@ -395,9 +337,9 @@ class Jumbler
 
     for(let i = 0; i < this.total; i++) temp.push(i);
 
-    for(let i = 0; i < ROWS.value; i++)
+    for(let i = 0; i < this.stored_rows; i++)
     {
-      for(let p = 0; p < COLUMNS.value; p++)
+      for(let p = 0; p < this.stored_columns; p++)
       {
         let rndImg = Math.floor(Math.random() * temp.length);
         tempImg.push(this.fragments[temp[rndImg]].frag);
@@ -413,6 +355,7 @@ class Jumbler
     this.show_original = false;
     ORIGINAL.style.transform = '';
     this.complete();
+    this.playing = true;
   }
 
   is_original()
@@ -434,41 +377,52 @@ class Jumbler
     let percent = Math.floor(100 / this.fragments.length * score);
     if(isNaN(percent)) percent = 0;
     COMPLETED.innerHTML = percent.toString() + "%";
-    if(percent === 100) window.alert('well done xd');
+    if(percent === 100)
+    {
+      window.alert('well done xd');
+      this.playing = false;
+    }
   }
 
   mouse_down(x, y)
   {
     if(this.show_original === true) return;
+    let scrollXAmount = window.scrollX;
+    let scrollYAmount = window.scrollY;
+    x += scrollXAmount;
+    y += scrollYAmount;
     let segX = Math.floor(x / this.tW);
     let segY = Math.floor(y / this.tH);
-    this.firstP = segX * COLUMNS.value + segY;
+    this.firstP = segX * this.stored_columns + segY;
   }
 
   mouse_up(x, y)
   {
     if(this.show_original === true) return;
+    let scrollXAmount = window.scrollX;
+    let scrollYAmount = window.scrollY;
+    x += scrollXAmount;
+    y += scrollYAmount;
     let segX = Math.floor(x / this.tW);
     let segY = Math.floor(y / this.tH);
-    this.secondP = segX * COLUMNS.value + segY;
+    this.secondP = segX * this.stored_columns + segY;
   
     if(this.firstP != this.secondP)
     {
-      c.putImageData(this.fragments[this.secondP].frag, this.fragments[this.firstP].row * this.tW, this.fragments[this.firstP].column * this.tH);
-      c.putImageData(this.fragments[this.firstP].frag, this.fragments[this.secondP].row * this.tW, this.fragments[this.secondP].column * this.tH);
       let f1 = this.fragments[this.firstP].frag;
       let f2 = this.fragments[this.secondP].frag;
       this.fragments[this.firstP].frag = f2;
       this.fragments[this.secondP].frag = f1;
     }
+    this.draw();
     this.complete();
   }
 }
 
 CANVAS.onmousedown = function(event) {
   event.preventDefault();
-  const scrollX = window.pageXOffset || document.documentElement.scrollLeft;
-  const scrollY = window.pageYOffset || document.documentElement.scrollTop;
+  const scrollX = window.scrollX;
+  const scrollY = window.scrollY;
   let rect = CANVAS.getBoundingClientRect();
   let x = event.clientX - rect.left - scrollX;
   let y = event.clientY - rect.top - scrollY;
@@ -479,8 +433,8 @@ CANVAS.onmousedown = function(event) {
 CANVAS.onmouseup = function(event)
 {
   event.preventDefault();
-  const scrollX = window.pageXOffset || document.documentElement.scrollLeft;
-  const scrollY = window.pageYOffset || document.documentElement.scrollTop;
+  const scrollX = window.scrollX;
+  const scrollY = window.scrollY;
   let rect = CANVAS.getBoundingClientRect();
   let x = event.clientX - rect.left - scrollX;
   let y = event.clientY - rect.top - scrollY;
